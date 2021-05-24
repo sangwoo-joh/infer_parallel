@@ -1,0 +1,7 @@
+profile = ocamlformat
+break-before-in = fit-or-vertical
+break-infix = fit-or-vertical
+break-sequences = true
+let-binding-spacing = sparse
+margin = 100
+parse-docstrings = true
