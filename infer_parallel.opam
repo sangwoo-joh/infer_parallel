@@ -1,0 +1,21 @@
+opam-version: "2.0"
+name: "infer_parallel"
+version: "0.1"
+maintainer: "Sangwoo Joh <lambdasnow@gmail.com>"
+authors: "Facebook. Modified by Sangwoo Joh"
+homepage: "https://github.com/sangwoo-joh/infer_parallel"
+bug-reports: "https://github.com/sangwoo-joh/infer_parallel/issues"
+dev-repo: "git+https://github.com/sangwoo-joh/infer_parallel.git"
+license: "MIT"
+build: [
+  ["dune" "build"]
+]
+depends: [
+  "ocaml" {>= "4.10.1"}
+  "dune" {>= "2.7.1"}
+  "base" {>= "0.14.0"}
+]
+synopsis: "Parallel, message passing, and task bar library"
+description: """
+Parallel, message passing, and task bar components used in Facebook's Infer project
+"""
