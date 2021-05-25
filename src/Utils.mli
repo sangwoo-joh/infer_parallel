@@ -54,6 +54,10 @@ val directory_iter : f:(string -> unit) -> string -> unit
 
 val read_json_file : string -> (Yojson.Basic.t, string) Result.t
 
+val try_finally_swallow_timeout : f:(unit -> 'a) -> finally:(unit -> unit) -> 'a
+(** Calls [f] then [finally] even if [f] raised an exception. The original exception is re-raised
+    afterwards. Where possible use [SymOp.tri_finally] to avoid swallowing timeouts. *)
+
 val with_file_in : string -> f:(In_channel.t -> 'a) -> 'a
 
 val with_file_out : string -> f:(Out_channel.t -> 'a) -> 'a
@@ -91,10 +95,6 @@ val suppress_stderr2 : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c
 
 val rmtree : string -> unit
 (** [rmtree path] removes [path] and if [path] is a directory, recursively removes its contents *)
-
-val try_finally_swallow_timeout : f:(unit -> 'a) -> finally:(unit -> unit) -> 'a
-(** Calls [f] then [finally] even if [f] raised an exception. The original exception is re-raised
-    afterwards. Where possible use [SymOp.tri_finally] to avoid swallowing timeouts. *)
 
 val better_hash : 'a -> Caml.Digest.t
 (** [Hashtbl.hash] only hashes the first 10 meaningful values, [better_hash] uses everything. *)
