@@ -1,4 +1,4 @@
 (library
  (public_name infer_parallel)
  (name infer_parallel)
- (libraries core ANSITerminal unix mtime.clock.os))
+ (libraries core ANSITerminal unix mtime.clock.os yojson))
