@@ -1,4 +1,5 @@
 (library
  (public_name infer_parallel)
  (name infer_parallel)
- (libraries core ANSITerminal unix mtime.clock.os yojson))
+ (libraries core ANSITerminal unix mtime.clock.os yojson setcore re zip)
+ (preprocess (pps ppx_compare)))
