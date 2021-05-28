@@ -13,7 +13,13 @@ build: [
 depends: [
   "ocaml" {>= "4.10.1"}
   "dune" {>= "2.7.1"}
-  "base" {>= "0.14.0"}
+  "core" {>= "0.14.0"}
+  "ANSITerminal" {>= "0.8.2"}
+  "mtime" {>= "1.2.0"}
+  "yojson" {>= "1.7.0"}
+  "setcore" {>= "1.0.2"}
+  "re" {>= "1.9.0"}
+  "camlzip" {>= "1.10"}
 ]
 synopsis: "Parallel, message passing, and task bar library"
 description: """
