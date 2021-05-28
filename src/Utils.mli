@@ -68,13 +68,13 @@ val with_intermediate_temp_file_out : string -> f:(Out_channel.t -> 'a) -> 'a
 
 val write_json_to_file : string -> Yojson.Basic.t -> unit
 
+val write_channel_in : f:(string -> unit) -> In_channel.t -> unit
+
 val consume_in : In_channel.t -> unit
 (** Consume and ignore all the lines from the channel until [End_of_file] is reached *)
 
 val echo_in : In_channel.t -> unit
 (** Echo the lines we get to stdout until [End_of_file] is reached *)
-
-val write_channel_in : f:(string -> unit) -> In_channel.t -> unit
 
 val write_process_in : string -> (In_channel.t -> 'a) -> 'a * Unix.Exit_or_signal.t
 
@@ -100,7 +100,7 @@ val better_hash : 'a -> Caml.Digest.t
 (** [Hashtbl.hash] only hashes the first 10 meaningful values, [better_hash] uses everything. *)
 
 val unlink_file_on_exit : string -> unit
-(** delete [temporary] file on exit *)
+(** Delete [temp_file] file on exit *)
 
 val strip_balanced_once : drop:(char -> bool) -> string -> string
 (** Drop at most one layer of well-balanced first and last characters satisfying [drop] from the
