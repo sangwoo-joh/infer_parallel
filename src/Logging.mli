@@ -24,3 +24,7 @@ val internal_error : ('a, F.formatter, unit) format -> 'a
 val external_error : ('a, F.formatter, unit) format -> 'a
 
 val external_warning : ('a, F.formatter, unit) format -> 'a
+
+type debug_level = Quiet | Moderate | Verbose
+
+val debug : debug_level -> ('a, F.formatter, unit) format -> 'a

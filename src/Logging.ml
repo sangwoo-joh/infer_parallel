@@ -225,3 +225,12 @@ let die error msg =
       log_of_kind error "%s@\n%s@." msg (Caml.Printexc.raw_backtrace_to_string backtrace) ;
       raise_error ~backtrace error ~msg)
     msg
+
+
+type debug_level = Quiet | Moderate | Verbose
+
+let debug_file_fmts = register_formatter "debug"
+
+let debug level fmt =
+  let to_file = match level with Quiet -> false | Moderate | Verbose -> true in
+  log ~to_console:false ~to_file debug_file_fmts fmt
