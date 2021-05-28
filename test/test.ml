@@ -1,15 +1,34 @@
 open Infer_parallel
 module L = Logging
+module F = Format
+
+(** Remember what the last status sent was so that we can update the status correctly when entering
+    and exiting. In particular, we need to remember the original time. *)
+let current_time = ref None
+
+let update_taskbar work =
+  let t0 = Mtime_clock.now () in
+  let status = F.asprintf "I'm %d and I'm doing %s" (Unix.getpid ()) (string_of_int work) in
+  !ProcessPoolState.update_status t0 status ;
+  current_time := Some t0
+
+
+let update_taskbar_done () =
+  match !current_time with None -> () | Some t0 -> !ProcessPoolState.update_status t0 "I'm done!"
+
 
 let task_generator () : (int, string) ProcessPool.TaskGenerator.t =
-  ProcessPool.TaskGenerator.of_list
-    [1; 2; 3; 4; 5; 6; 7; 10; 19; 22; 22; 22; 22; 23; 13; 33; 23; 13; 23; 29; 31]
+  ProcessPool.TaskGenerator.of_list [1; 2; 2; 2; 2; 3; 4; 4; 3; 3; 4; 3; 3; 3; 4; 4; 3]
 
 
 let meaningless_task : (int, string) Tasks.doer =
  fun number ->
+  update_taskbar number ;
   Unix.sleep number ;
-  if Random.bool () then Some (Printf.sprintf "Did %d" number) else None
+  let result = if Random.bool () then Some (Printf.sprintf "Did %d" number) else None in
+  update_taskbar_done () ;
+  Unix.sleep number ;
+  result
 
 
 let meaninglessly_parallel () =
