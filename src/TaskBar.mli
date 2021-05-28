@@ -10,6 +10,8 @@ open! IStd
 
 type t
 
+val erase_eol: string
+
 val refresh : t -> unit
 (** refresh the taskbar *)
 
