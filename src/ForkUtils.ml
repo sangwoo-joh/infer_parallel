@@ -9,6 +9,7 @@
 open! IStd
 
 let protect ~f x =
+  Epilogues.reset () ;
   Stdlib.flush_all () ;
   (* get different streams of random numbers in each fork, in particular to lessen contention in `Filename.mk_temp` *)
   Random.self_init () ;
