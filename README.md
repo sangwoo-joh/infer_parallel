@@ -8,3 +8,9 @@
 
  This project was inspired by Rijnard van Tonder's
  [hack_parallel](https://github.com/rvantonder/hack_parallel).
+
+## Sample
+ You can find a sample code in [test/test.ml](test/test.ml). Below is
+ an animation of how it works.
+
+![](resources/infer_parallel.gif)
