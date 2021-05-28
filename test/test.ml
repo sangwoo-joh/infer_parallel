@@ -18,7 +18,7 @@ let update_taskbar_done () =
 
 
 let task_generator () : (int, string) ProcessPool.TaskGenerator.t =
-  ProcessPool.TaskGenerator.of_list [1; 2; 2; 2; 2; 3; 4; 4; 3; 3; 4; 3; 3; 3; 4; 4; 3]
+  ProcessPool.TaskGenerator.of_list [1; 1; 2; 2; 1; 2; 1; 1; 2; 2; 2; 1; 1; 2; 2; 1; 3]
 
 
 let meaningless_task : (int, string) Tasks.doer =
@@ -32,6 +32,9 @@ let meaningless_task : (int, string) Tasks.doer =
 
 
 let meaninglessly_parallel () =
+  (* Set some configs *)
+  Config.jobs := 8 ;
+  L.environment_info "Parallel jobs: %d@." !Config.jobs ;
   let runner =
     let gc_stats_pre_fork = ref None in
     let child_prologue () = gc_stats_pre_fork := Some (GCStats.get ~since:ProgramStart) in
