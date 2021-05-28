@@ -13,6 +13,8 @@ include module type of Die
 
 type style = Error | Fatal | Warning | Normal
 
+val environment_info : ('a, F.formatter, unit) format -> 'a
+
 val term_styles_of_style : style -> ANSITerminal.style list
 
 val user_error : ('a, F.formatter, unit) format -> 'a

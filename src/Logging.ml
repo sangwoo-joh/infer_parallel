@@ -189,6 +189,10 @@ let log ~to_console ?(to_file = true) (lazy formatters) =
         ~default:(F.fprintf F.err_formatter)
 
 
+let environment_info_file_fmts = register_formatter "environment"
+
+let environment_info fmt = log ~to_console:false environment_info_file_fmts fmt
+
 let user_error_file_fmts = register_formatter ~color_scheme:Fatal "user error"
 
 let user_error fmt = log ~to_console:true user_error_file_fmts fmt
