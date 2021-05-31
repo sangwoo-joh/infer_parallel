@@ -24,7 +24,7 @@ module Runner : sig
     -> child_epilogue:(unit -> 'final)
     -> tasks:(unit -> ('work, 'result) ProcessPool.TaskGenerator.t)
     -> ('work, 'final, 'result) t
-  (** Create a runner running [jobs] jobs in parallel ]*)
+  (** Create a runner running [jobs] jobs in parallel *)
 
   val run : (_, 'final, _) t -> 'final option Array.t
   (** Start the given tasks with the runner and wait until completion *)

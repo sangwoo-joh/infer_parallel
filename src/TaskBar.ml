@@ -120,7 +120,7 @@ let refresh_multiline task_bar =
   in
   let now = Mtime_clock.now () in
   Array.iter2_exn task_bar.jobs_statuses task_bar.jobs_start_times ~f:(fun status t0 ->
-      draw_job_status F.err_formatter ~term_width ~draw_time now ~status ~t0) ;
+      draw_job_status F.err_formatter ~term_width ~draw_time now ~status ~t0 ) ;
   let lines_printed =
     let progress_bar = if should_draw_progress_bar then 1 else 0 in
     task_bar.jobs + progress_bar

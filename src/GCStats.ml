@@ -57,7 +57,7 @@ let pp fmt
      ; minor_collections: int
      ; major_collections: int
      ; compactions: int
-     ; top_heap_words: int }[@warning "+9"]) =
+     ; top_heap_words: int }[@warning "+9"] ) =
   F.fprintf fmt
     "@[<v2>  minor_words: %g@;\
      promoted_words: %g@;\

@@ -17,7 +17,7 @@ let do_finally_swallow_timeout ~f ~finally =
     try f ()
     with exc ->
       IExn.reraise_after exc ~f:(fun () ->
-          try finally () |> ignore with _ -> (* swallow in favor of the original exception *) ())
+          try finally () |> ignore with _ -> (* swallow in favor of the original exception *) () )
   in
   let res' = finally () in
   (res, res')
@@ -76,7 +76,7 @@ let num_cores =
               loop sockets cores
         in
         let sockets, cores_per_socket = loop Int.Set.empty Int.Set.empty in
-        sockets * cores_per_socket)
+        sockets * cores_per_socket )
   in
   (* NOTE: check build platform just using Sys.os_type *)
   match Sys.os_type with "Unix" -> physical_cores () | _ -> cpus / 2

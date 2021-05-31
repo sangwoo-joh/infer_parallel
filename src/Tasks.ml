@@ -18,7 +18,7 @@ module Runner = struct
       ~child_prologue:
         ((* hack: we'll continue executing after the function passed
             to [protect], despite what the name might suggest *)
-         ForkUtils.protect ~f:child_prologue)
+         ForkUtils.protect ~f:child_prologue )
 
 
   let run runner =
@@ -36,14 +36,14 @@ let run_sequentially ~(f : ('a, 'b) doer) (tasks : 'a list) : unit =
   (ProcessPoolState.update_status :=
      fun t status ->
        TaskBar.update_status task_bar ~slot:0 t status ;
-       TaskBar.refresh task_bar) ;
+       TaskBar.refresh task_bar ) ;
   TaskBar.set_tasks_total task_bar (task_generator.remaining_tasks ()) ;
   TaskBar.tasks_done_reset task_bar ;
   let rec run_tasks () =
     if not (task_generator.is_empty ()) then (
       Option.iter (task_generator.next ()) ~f:(fun t ->
           let result = f t in
-          task_generator.finished ~result t) ;
+          task_generator.finished ~result t ) ;
       TaskBar.set_remaining_tasks task_bar (task_generator.remaining_tasks ()) ;
       TaskBar.refresh task_bar ;
       run_tasks () )
