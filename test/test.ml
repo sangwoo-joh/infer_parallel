@@ -24,10 +24,10 @@ let task_generator () : (int, string) ProcessPool.TaskGenerator.t =
 let meaningless_task : (int, string) Tasks.doer =
  fun number ->
   update_taskbar number ;
-  Unix.sleep number ;
+  Unix.sleepf (Random.float 3.3) ;
   let result = if Random.bool () then Some (Printf.sprintf "Did %d" number) else None in
   update_taskbar_done () ;
-  Unix.sleep number ;
+  Unix.sleepf (Random.float 3.3) ;
   result
 
 
@@ -37,7 +37,10 @@ let meaninglessly_parallel () =
   L.environment_info "Parallel jobs: %d@." !Config.jobs ;
   let runner =
     let gc_stats_pre_fork = ref None in
-    let child_prologue () = gc_stats_pre_fork := Some (GCStats.get ~since:ProgramStart) in
+    let child_prologue () =
+      gc_stats_pre_fork := Some (GCStats.get ~since:ProgramStart) ;
+      Random.self_init ()
+    in
     let child_epilogue () =
       let gc_stats_in_fork =
         match !gc_stats_pre_fork with
