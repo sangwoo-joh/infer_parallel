@@ -1,3 +1,4 @@
+version = 0.18.0
 profile = ocamlformat
 break-before-in = fit-or-vertical
 break-infix = fit-or-vertical
