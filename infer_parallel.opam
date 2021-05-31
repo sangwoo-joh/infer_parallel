@@ -11,8 +11,8 @@ build: [
   ["dune" "build"]
 ]
 depends: [
-  "ocaml" {>= "4.10.1"}
-  "dune" {>= "2.7.1"}
+  "ocaml" {>= "4.08.0"}
+  "dune" {>= "2.0.0"}
   "core" {>= "0.14.0"}
   "ANSITerminal" {>= "0.8.2"}
   "mtime" {>= "1.2.0"}
