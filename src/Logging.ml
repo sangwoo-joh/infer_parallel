@@ -138,7 +138,8 @@ let register_formatter =
   let all_prefixes = ref [] in
   fun ?use_stdout ?color_scheme prefix ->
     all_prefixes := prefix :: !all_prefixes ;
-    (* lazy so that we get a chance to register all prefixes before computing their max lenght for alignment purposes. *)
+    (* lazy so that we get a chance to register all prefixes before
+       computing their max lenght for alignment purposes. *)
     lazy
       (let max_prefix = List.map ~f:String.length !all_prefixes |> List.fold_left ~f:max ~init:0 in
        let fill =

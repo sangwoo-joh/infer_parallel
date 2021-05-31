@@ -16,12 +16,14 @@ module Runner = struct
   let create ~jobs ~child_prologue ~f ~child_epilogue ~tasks =
     ProcessPool.create ~jobs ~f ~child_epilogue ~tasks
       ~child_prologue:
-        ((* hack: we'll continue executing after the function passed to [protect], despite what the name might suggest *)
+        ((* hack: we'll continue executing after the function passed
+            to [protect], despite what the name might suggest *)
          ForkUtils.protect ~f:child_prologue)
 
 
   let run runner =
-    (* Flush here all buffers to avoid passing unflushed data to forked processes, leading to duplication *)
+    (* Flush here all buffers to avoid passing unflushed data to
+       forked processes, leading to duplication *)
     Stdlib.flush_all () ;
     (* Compact heap before forking *)
     Gc.compact () ;

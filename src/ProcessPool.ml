@@ -228,9 +228,11 @@ let process_updates pool buffer =
        | UpdateStatus (slot, t, status) ->
            TaskBar.update_status pool.task_bar ~slot t status
        | Crash slot ->
-           (* NOTE: the workers only send this message if {!Config.keep_going} is not [true] so if we receive it we know we should fail hard *)
+           (* NOTE: the workers only send this message if
+              {!Config.keep_going} is not [true] so if we receive it we
+              know we should fail hard *)
            let {pid; _} = pool.slots.(slot) in
-           (* clean crash, give the child process a chance to cleanup  *)
+           (* clean crash, give the child process a chance to cleanup *)
            Unix.wait (`Pid pid) |> ignore ;
            killall pool ~slot "see backtrace above"
        | Ready {worker= slot; result} ->
@@ -254,7 +256,9 @@ type 'a final_worker_message = Finished of int * 'a option | FinalCrash of int
 
 let collect_results (pool : (_, 'final, _) t) =
   let failed = ref false in
-  (* use [Array.init] just to collect n messages, the order in the array will not be the same as the slots of the workers but that's ok *)
+  (* use [Array.init] just to collect n messages, the order in the
+     array will not be the same as the slots of the workers but that's
+     ok *)
   Array.init pool.jobs ~f:(fun i ->
       if !failed then None
       else
@@ -265,7 +269,9 @@ let collect_results (pool : (_, 'final, _) t) =
             log_or_die "@[<v>error reading %dth final values from children@]%!" i ;
             None
         | FinalCrash slot ->
-            (* NOTE: the workers only send this message if {!Config.keep_going} is not [true] so if we receive it we know we should fail hard *)
+            (* NOTE: the workers only send this message if
+               {!Config.keep_going} is not [true] so if we receive it we
+               know we should fail hard *)
             killall pool ~slot "see backtrace above"
         | Finished (_, data) ->
             data)
@@ -278,14 +284,16 @@ let wait_all pool =
       marshal_to_pipe down_pipe GoHome ;
       Out_channel.close down_pipe) ;
   let results = collect_results pool in
-  (* [wait(2)] workers one by one; the order doesn't matter since we want to wait for all of them eventually anyway. *)
+  (* [wait(2)] workers one by one; the order doesn't matter since we
+     want to wait for all of them eventually anyway. *)
   let errors =
     Array.foldi pool.slots ~init:[] ~f:(fun slot errors {pid; _} ->
         match Unix.wait (`Pid pid) with
         | _, Ok () ->
             errors
         | _, (Error _ as status) ->
-            (* Collect all error of children and die only at the end to avoid creating zombies *)
+            (* Collect all error of children and die only at the end to
+               avoid creating zombies *)
             (slot, status) :: errors)
   in
   ProcessPoolState.has_running_children := false ;
@@ -344,7 +352,8 @@ let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
   | `In_the_child ->
       Unix.close updates_r ;
       Unix.close to_child_w ;
-      (* Pine to a core. [setcore] does the module <number of cores> for us. *)
+      (* Pin to a core. [setcore] does the module <number of cores>
+         for us. *)
       Utils.set_best_cpu_for slot ;
       ProcessPoolState.in_child := true ;
       ProcessPoolState.reset_pid () ;
@@ -354,14 +363,21 @@ let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
       let send_final (final_message : 'a final_worker_message) =
         marshal_to_pipe updates_oc final_message
       in
-      (* Function to send updates up the pipe to the parent instead of directly to the task bar. This is because only the parent knows about all the children, hence it's in charge of actually updating the task bar. *)
+      (* Function to send updates up the pipe to the parent instead of
+         directly to the task bar. This is because only the parent
+         knows about all the children, hence it's in charge of
+         actually updating the task bar. *)
       let update_status t status =
         match !Config.progress_bar with
         | `Quiet | `Plain ->
             ()
         | `Multiline ->
             let status =
-              (* Truncate status if too big: it's pointless to spam the status bar with long status, and also difficult to achieve technically over pipes (it's easier if all the messages fit into a buffer ot reasonable size). *)
+              (* Truncate status if too big: it's pointless to spam
+                 the status bar with long status, and also difficult
+                 to achieve technically over pipes (it's easier if all
+                 the messages fit into a buffer ot reasonable
+                 size). *)
               if String.length status > 100 then String.subo ~len:100 status ^ "..." else status
             in
             send_to_parent (UpdateStatus (slot, t, status))

@@ -53,7 +53,9 @@ let draw_top_bar fmt ~term_width ~total ~finished ~elapsed =
   let tasks_total_string = Int.to_string total in
   let bar_tasks_num_size = String.length tasks_total_string in
   let elapsed_string = F.asprintf "%a" Mtime.Span.pp elapsed in
-  (* format string for the full top bar, assuming there is enough room, and number of characters taken by the portion of the top bar that is not the progress bar itself *)
+  (* format string for the full top bar, assuming there is enough
+     room, and number of characters taken by the portion of the top
+     bar that is not the progress bar itself *)
   let top_bar_fmt, size_around_progress_bar =
     (* add pairs of a partial format string and its expected size *)
     let ( ++ ) (f1, l1) (f2, l2) = (f1 ^^ f2, l1 + l2) in
@@ -68,8 +70,9 @@ let draw_top_bar fmt ~term_width ~total ~finished ~elapsed =
     +++ " "
     ++ ( "%s"
        , max (String.length elapsed_string) 9
-         (* leave some room for elapsed_string to avoid flicker. 9 character is "XXhXXmXXs" so it gives some reasonable margin. *)
-       )
+         (* leave some room for elapsed_string to avoid flicker. 9
+            character is "XXhXXmXXs" so it gives some reasonable
+            margin. *) )
   in
   let top_bar_size = min term_width top_bar_size_default in
   let progress_bar_size = top_bar_size - size_around_progress_bar in
@@ -109,7 +112,10 @@ let refresh_multiline task_bar =
       ~finished:task_bar.tasks_done
       ~elapsed:(Mtime_clock.count task_bar.start_time) ;
   let draw_time =
-    (* When there is only 1 job, we are careful not to spawn processes needlessly, thus there is no one to refresh the task bar while the analysis is running, and the time displayed will always be 0. Avoid confusion by not displaying the time in that case. *)
+    (* When there is only 1 job, we are careful not to spawn processes
+       needlessly, thus there is no one to refresh the task bar while
+       the analysis is running, and the time displayed will always be
+       0. Avoid confusion by not displaying the time in that case. *)
     task_bar.jobs > 1
   in
   let now = Mtime_clock.now () in
