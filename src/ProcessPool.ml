@@ -190,12 +190,13 @@ let has_dead_child pool =
   >>| fun slot -> (slot, status)
 
 
-let child_is_idle = function Idle -> true | _ -> false
+let is_idle = function Idle -> true | _ -> false
 
-let all_children_idle pool = Array.for_all pool.children_states ~f:child_is_idle
+let all_children_idle pool = Array.for_all pool.children_states ~f:is_idle
 
 let send_work_to_child pool slot =
-  assert (child_is_idle pool.children_states.(slot)) ;
+  (* Send work to child at [slot]. It must be Idle state to get its work. *)
+  assert (is_idle pool.children_states.(slot)) ;
   pool.tasks.next ()
   |> Option.iter ~f:(fun x ->
          let {down_pipe; _} = pool.slots.(slot) in
