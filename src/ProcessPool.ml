@@ -164,12 +164,15 @@ let wait_for_updates pool buffer =
 
 
 let killall pool ~slot status =
+  (* First, send SIGTERM for all children *)
   Array.iter pool.slots ~f:(fun {pid; _} ->
       match Signal.send Signal.term (`Pid pid) with `Ok | `No_such_process -> () ) ;
+  (* Wait children *)
   Array.iter pool.slots ~f:(fun {pid; _} ->
       try Unix.wait (`Pid pid) |> ignore
       with Unix.Unix_error (ECHILD, _, _) ->
         (* Some children may have died already, and it's find *) () ) ;
+  (* Update parent process's state *)
   ProcessState.has_running_children := false ;
   L.(die InternalError) "Subprocess %d: %s" slot status
 
