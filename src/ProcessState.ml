@@ -2,7 +2,7 @@ open! IStd
 
 let worker = ref false
 
-let update_status = ref (fun _ _ -> ())
+let update_status = ref (fun _time _message -> ())
 
 let pid = ref (lazy (Unix.getpid ()))
 
