@@ -10,9 +10,9 @@ open! IStd
 
 (** Entry point for leveraging [TaskBar] and [ProcessPool]. *)
 
-type ('a, 'b) doer = 'a -> 'b option
+type ('a, 'b) command = 'a -> 'b option
 
-val run_sequentially : f:('a, 'b) doer -> 'a list -> unit
+val run_sequentially : f:('a, 'b) command -> 'a list -> unit
 (** Run the tasks sequentially *)
 
 (** A runner accepts new tasks repeatedly for parallel execution *)
@@ -22,7 +22,7 @@ module Runner : sig
   val create :
        jobs:int
     -> child_prologue:(unit -> unit)
-    -> f:('work, 'result) doer
+    -> f:('work, 'result) command
     -> child_epilogue:(unit -> 'final)
     -> tasks:(unit -> ('work, 'result) ProcessPool.TaskGenerator.t)
     -> ('work, 'final, 'result) t

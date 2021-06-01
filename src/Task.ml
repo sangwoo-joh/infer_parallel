@@ -8,7 +8,7 @@
 
 open! IStd
 
-type ('a, 'b) doer = 'a -> 'b option
+type ('a, 'b) command = 'a -> 'b option
 
 module Runner = struct
   type ('work, 'final, 'result) t = ('work, 'final, 'result) ProcessPool.t
@@ -30,10 +30,10 @@ module Runner = struct
     ProcessPool.run runner
 end
 
-let run_sequentially ~(f : ('a, 'b) doer) (tasks : 'a list) : unit =
+let run_sequentially ~(f : ('a, 'b) command) (tasks : 'a list) : unit =
   let task_generator = ProcessPool.TaskGenerator.of_list tasks in
   let task_bar = TaskBar.create ~jobs:1 in
-  (ProcessPoolState.update_status :=
+  (ProcessState.update_status :=
      fun t status ->
        TaskBar.update_status task_bar ~slot:0 t status ;
        TaskBar.refresh task_bar ) ;

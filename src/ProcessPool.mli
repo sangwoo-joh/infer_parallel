@@ -48,7 +48,7 @@ end
     respectively send them more tasks ("Do x") or update the task bar with the description provided
     by the child.
 
-    See also ProcessPoolState. *)
+    See also ProcessState. *)
 
 (** A [('work, 'final) t] process pool accepts tasks of type ['work] and produces an array of
     results of type ['final]. ['work] and ['final] will be marshalled over a Unix pipe.*)

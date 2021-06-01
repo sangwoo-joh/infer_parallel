@@ -9,19 +9,19 @@ let current_time = ref None
 let update_taskbar work =
   let t0 = Mtime_clock.now () in
   let status = F.asprintf "I'm %d and I'm doing %s" (Unix.getpid ()) (string_of_int work) in
-  !ProcessPoolState.update_status t0 status ;
+  !ProcessState.update_status t0 status ;
   current_time := Some t0
 
 
 let update_taskbar_done () =
-  match !current_time with None -> () | Some t0 -> !ProcessPoolState.update_status t0 "I'm done!"
+  match !current_time with None -> () | Some t0 -> !ProcessState.update_status t0 "I'm done!"
 
 
 let task_generator () : (int, string) ProcessPool.TaskGenerator.t =
   ProcessPool.TaskGenerator.of_list [1; 1; 2; 2; 1; 2; 1; 1; 2; 2; 2; 1; 1; 2; 2; 1; 3]
 
 
-let meaningless_task : (int, string) Tasks.doer =
+let meaningless_task : (int, string) Task.command =
  fun number ->
   update_taskbar number ;
   Unix.sleepf (Random.float 3.3) ;
@@ -52,10 +52,10 @@ let meaninglessly_parallel () =
       in
       gc_stats_in_fork
     in
-    Tasks.Runner.create ~jobs:!Config.jobs ~f:meaningless_task ~child_prologue ~child_epilogue
+    Task.Runner.create ~jobs:!Config.jobs ~f:meaningless_task ~child_prologue ~child_epilogue
       ~tasks:task_generator
   in
-  let worker_stats = Tasks.Runner.run runner in
+  let worker_stats = Task.Runner.run runner in
   let collected_stats =
     Core.Array.fold worker_stats ~init:[] ~f:(fun acc stat_opt ->
         match stat_opt with
