@@ -9,20 +9,6 @@ module TaskGenerator = struct
     ; finished: result:'result option -> 'work -> unit
     ; next: unit -> 'work option }
 
-  let chain gen1 gen2 =
-    let remaining_tasks () = gen1.remaining_tasks () + gen2.remaining_tasks () in
-    let gen1_returned_empty = ref false in
-    let gen1_is_empty () =
-      gen1_returned_empty := !gen1_returned_empty || gen1.is_empty () ;
-      !gen1_returned_empty
-    in
-    let is_empty () = gen1_is_empty () && gen2.is_empty () in
-    let finished ~result work_item =
-      if gen1_is_empty () then gen2.finished ~result work_item else gen1.finished ~result work_item
-    in
-    let next x = if gen1_is_empty () then gen2.next x else gen1.next x in
-    {remaining_tasks; is_empty; finished; next}
-
 
   let of_list lst =
     let content = ref lst in

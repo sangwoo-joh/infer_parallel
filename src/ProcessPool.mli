@@ -28,9 +28,6 @@ module TaskGenerator : sig
               is [false]. This corresponds to the case where there is more works to be done, but it
               is not schedulable until some already scheduled work is finished.*) }
 
-  val chain : ('work, 'result) t -> ('work, 'result) t -> ('work, 'result) t
-  (** chain two generators in order *)
-
   val of_list : 'work list -> ('work, 'result) t
   (** schedule tasks out of a concrete list *)
 end
