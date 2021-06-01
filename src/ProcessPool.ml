@@ -47,6 +47,9 @@ end
 
 let log_or_die fmt = if !Config.keep_going then L.internal_error fmt else L.die InternalError fmt
 
+(** Types for managing process pool *)
+
+(** Child process information *)
 type child_info = {pid: Pid.t; down_pipe: Out_channel.t}
 
 (** The master's abstraction of state for workers. See [worker_message] and [boss_message] below for
@@ -72,16 +75,6 @@ type ('work, 'final, 'result) t =
   ; task_bar: TaskBar.t
   ; tasks: ('work, 'result) TaskGenerator.t  (** Generator for work remaining to be done *) }
 
-(** Refresh rate of the task bar (worst case: it also refreshes on children updates). This is now
-    mandatory to allow checking for new work packets, when none were previously available *)
-let refresh_timeout =
-  let frames_per_second = 12 in
-  `After (Time_ns.Span.of_int_ms (1_000 / frames_per_second))
-
-
-(** Size of the buffer for communicating with children -- standard pipe buffer size *)
-let buffer_size = 65_535
-
 (** Messages from child processes to the parent process. Each message includes the identity of the
     child sending the process as its index (slot) in the array [pool.slots].
 
@@ -103,6 +96,20 @@ type 'work boss_message =
   | Do of 'work
       (** [Do x] is sent only when the work is [Idle], and moves worker state to [Processing x] *)
   | GoHome  (** All tasks done, prepare for teardown. *)
+
+type 'final final_worker_message = Finished of int * 'final option | FinalCrash of int
+
+(**** Functions ****)
+
+(** Refresh rate of the task bar (worst case: it also refreshes on children updates). This is now
+    mandatory to allow checking for new work packets, when none were previously available *)
+let refresh_timeout : [> `After of Time_ns.Span.t] =
+  let frames_per_second = 12 in
+  `After (Time_ns.Span.of_int_ms (1_000 / frames_per_second))
+
+
+(** Size of the buffer for communicating with children -- standard pipe buffer size *)
+let buffer_size : int = 65_535
 
 (** Convinient function to send data down pipes without forgetting to flush *)
 let marshal_to_pipe fd x =
@@ -259,8 +266,6 @@ let process_updates pool buffer =
     Array.iteri pool.children_states ~f:(fun slot state ->
         match state with Idle -> send_work_to_child pool slot | Initializing | Processing _ -> () )
 
-
-type 'final final_worker_message = Finished of int * 'final option | FinalCrash of int
 
 let collect_results (pool : (_, 'final, _) t) =
   let failed = ref false in
