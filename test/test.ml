@@ -1,6 +1,7 @@
 open Infer_parallel
 module L = Logging
 module F = Format
+module P = Printf
 
 (** Remember what the last status sent was so that we can update the status correctly when entering
     and exiting. In particular, we need to remember the original time. *)
@@ -17,15 +18,15 @@ let update_taskbar_done () =
   match !current_time with None -> () | Some t0 -> !ProcessState.update_status t0 "I'm done!"
 
 
-let task_generator () : (int, string) ProcessPool.TaskGenerator.t =
-  ProcessPool.TaskGenerator.of_list [1; 1; 2; 2; 1; 2; 1; 1; 2; 2; 2; 1; 1; 2; 2; 1; 3]
+let task_manager () : (int, int) ProcessPool.TaskManager.t =
+  ProcessPool.TaskManager.of_list [1; 1; 2; 2; 1; 2; 1; 1; 2; 2; 2; 1; 1; 2; 2; 1; 3]
 
 
-let meaningless_task : (int, string) Task.command =
+let meaningless_task : (int, int) Task.command =
  fun number ->
   update_taskbar number ;
   Unix.sleepf (Random.float 3.3) ;
-  let result = if Random.bool () then Some (Printf.sprintf "Did %d" number) else None in
+  let result = if Random.bool () then Some number else None in
   update_taskbar_done () ;
   Unix.sleepf (Random.float 3.3) ;
   result
@@ -53,18 +54,30 @@ let meaninglessly_parallel () =
       gc_stats_in_fork
     in
     Task.Runner.create ~jobs:!Config.jobs ~f:meaningless_task ~child_prologue ~child_epilogue
-      ~tasks:task_generator
+      ~tasks:task_manager
   in
-  let worker_stats = Task.Runner.run runner in
+  let final_array, result_table = Task.Runner.run runner in
   let collected_stats =
-    Core.Array.fold worker_stats ~init:[] ~f:(fun acc stat_opt ->
+    Core.Array.fold final_array ~init:[] ~f:(fun acc stat_opt ->
         match stat_opt with
         | None ->
             acc
         | Some gc_stat_opt ->
-            Core.Option.fold ~init:acc ~f:(fun l x -> x :: l) gc_stat_opt)
+            Core.Option.fold ~init:acc ~f:(fun l x -> x :: l) gc_stat_opt )
   in
-  collected_stats
+  L.(debug Verbose) "Total size of collected final: %d\n" (List.length collected_stats) ;
+  L.(debug Verbose) "Total size of result: %d\n" (Core.Hashtbl.length result_table) ;
+  Core.Hashtbl.iteri result_table ~f:(fun ~key ~data ->
+      match data with
+      | None ->
+          L.(debug Verbose) "%dth task is dead\n" key
+      | Some number ->
+          L.(debug Verbose) "%dth task %d survived!\n" key number ) ;
+  let survived =
+    Core.Hashtbl.fold result_table ~init:0 ~f:(fun ~key:_ ~data acc ->
+        match data with None -> acc | Some _ -> acc + 1 )
+  in
+  L.(debug Verbose) "Total %d task was survived\n" survived
 
 
 let () = meaninglessly_parallel () |> ignore
