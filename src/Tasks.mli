@@ -8,6 +8,8 @@
 
 open! IStd
 
+(** Entry point for leveraging [TaskBar] and [ProcessPool]. *)
+
 type ('a, 'b) doer = 'a -> 'b option
 
 val run_sequentially : f:('a, 'b) doer -> 'a list -> unit
