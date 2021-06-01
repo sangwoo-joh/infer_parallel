@@ -3,13 +3,13 @@ module F = Format
 module L = Logging
 
 module TaskGenerator = struct
-  type ('a, 'b) t =
+  type ('work, 'result) t =
     { remaining_tasks: unit -> int
     ; is_empty: unit -> bool
-    ; finished: result:'b option -> 'a -> unit
-    ; next: unit -> 'a option }
+    ; finished: result:'result option -> 'work -> unit
+    ; next: unit -> 'work option }
 
-  let chain (gen1 : ('a, 'b) t) (gen2 : ('a, 'b) t) : ('a, 'b) t =
+  let chain gen1 gen2 =
     let remaining_tasks () = gen1.remaining_tasks () + gen2.remaining_tasks () in
     let gen1_returned_empty = ref false in
     let gen1_is_empty () =
@@ -24,12 +24,12 @@ module TaskGenerator = struct
     {remaining_tasks; is_empty; finished; next}
 
 
-  let of_list (lst : 'a list) : ('a, _) t =
+  let of_list lst =
     let content = ref lst in
     let length = ref (List.length lst) in
     let remaining_tasks () = !length in
     let is_empty () = List.is_empty !content in
-    let finished ~result:_ _work_item =
+    let finished ~result:_ _item =
       decr length
       (* As you see here, it just tracks the *count* of the remaining
          tasks, not the *exact* task that some child has completed. *)
@@ -56,7 +56,7 @@ type child_info = {pid: Pid.t; down_pipe: Out_channel.t}
     - [Idle] is the state a worker goes to after it finished initializing, or finishes processing a
       work item.
     - [Processing x] means the worker is currently processing [x]. *)
-type 'a child_state = Initializing | Idle | Processing of 'a
+type 'work child_state = Initializing | Idle | Processing of 'work
 
 (** The state of the process pool *)
 type ('work, 'final, 'result) t =
@@ -99,8 +99,8 @@ type 'result worker_message =
   | Crash of int  (** There was an error and the child is no longer receiving messages. *)
 
 (** Messages from the parent process down to worker processes *)
-type 'a boss_message =
-  | Do of 'a
+type 'work boss_message =
+  | Do of 'work
       (** [Do x] is sent only when the work is [Idle], and moves worker state to [Processing x] *)
   | GoHome  (** All tasks done, prepare for teardown. *)
 
@@ -260,7 +260,7 @@ let process_updates pool buffer =
         match state with Idle -> send_work_to_child pool slot | Initializing | Processing _ -> () )
 
 
-type 'a final_worker_message = Finished of int * 'a option | FinalCrash of int
+type 'final final_worker_message = Finished of int * 'final option | FinalCrash of int
 
 let collect_results (pool : (_, 'final, _) t) =
   let failed = ref false in
@@ -367,8 +367,8 @@ let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
       ProcessState.reset_pid () ;
       child_prologue () ;
       let updates_oc = Unix.out_channel_of_descr updates_w in
-      let send_to_parent (message : 'b worker_message) = marshal_to_pipe updates_oc message in
-      let send_final (final_message : 'a final_worker_message) =
+      let send_to_parent (message : 'result worker_message) = marshal_to_pipe updates_oc message in
+      let send_final (final_message : 'final final_worker_message) =
         marshal_to_pipe updates_oc final_message
       in
       (* Function to send updates up the pipe to the parent instead of

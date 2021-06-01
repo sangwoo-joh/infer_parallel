@@ -11,27 +11,27 @@ open! IStd
 module TaskGenerator : sig
   (** abstraction for generating jobs *)
 
-  type ('a, 'b) t =
+  type ('work, 'result) t =
     { remaining_tasks: unit -> int
           (** number of tasks remaining to complete -- only used for reporting, so imprecision is
               not a bug*)
     ; is_empty: unit -> bool
           (** when should the main loop of the task manager stop expecting new tasks *)
-    ; finished: result:'b option -> 'a -> unit
+    ; finished: result:'result option -> 'work -> unit
           (** Process pool calls [finished result:r x] when a worker finished item [x]. result is
               [None] when the item was completed successfully and [Some pname] when it failed
               because it could not lock [pname]. This is only called if [next ()] has previously
               returned [Some x] and [x] was sent to a worker. *)
-    ; next: unit -> 'a option
+    ; next: unit -> 'work option
           (** [next ()] generates the next work item. If [is_empty ()] is [true] then [next ()] must
               return [None]. However, it is OK to for [next ()] to return [None] when [is_empty ()]
               is [false]. This corresponds to the case where there is more works to be done, but it
               is not schedulable until some already scheduled work is finished.*) }
 
-  val chain : ('a, 'b) t -> ('a, 'b) t -> ('a, 'b) t
+  val chain : ('work, 'result) t -> ('work, 'result) t -> ('work, 'result) t
   (** chain two generators in order *)
 
-  val of_list : 'a list -> ('a, 'b) t
+  val of_list : 'work list -> ('work, 'result) t
   (** schedule tasks out of a concrete list *)
 end
 
@@ -52,7 +52,7 @@ end
 
 (** A [('work, 'final) t] process pool accepts tasks of type ['work] and produces an array of
     results of type ['final]. ['work] and ['final] will be marshalled over a Unix pipe.*)
-type (_, _, _) t
+type ('work, 'final, 'result) t
 
 val create :
      jobs:int
@@ -63,6 +63,6 @@ val create :
   -> ('work, 'final, 'result) t
 (** Create a new pool of processes running [jobs] jobs in parallel *)
 
-val run : (_, 'final, 'result) t -> 'final option Array.t
+val run : ('work, 'final, 'result) t -> 'final option Array.t
 (** Use the processes in the given process pool to run all the given tasks in parallel and return
     the results of the epilogues *)
