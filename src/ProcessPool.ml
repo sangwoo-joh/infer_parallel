@@ -86,7 +86,7 @@ type 'result worker_message =
   | UpdateStatus of int * Mtime.t * string
       (** [(i, t, status)] means starting a task from slot [i], at start time [t], with description
           [status]. Watch out that [status] must not be too close in length to [buffer_size]. *)
-  | Ready of {worker: int; result: 'result}
+  | Ready of {worker: int; result: 'result option}
       (** Send after finishing initialization or after finishing a given task. When received by
           master, this moves the worker state from [Initializing] or [Processing _] to [Idle]. *)
   | Crash of int  (** There was an error and the child is no longer receiving messages. *)
