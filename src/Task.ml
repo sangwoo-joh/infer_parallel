@@ -30,23 +30,25 @@ module Runner = struct
     ProcessPool.run runner
 end
 
-let run_sequentially ~(f : ('a, 'b) command) (tasks : 'a list) : unit =
-  let task_generator = ProcessPool.TaskGenerator.of_list tasks in
+let run_sequentially ~(f : ('work, 'result) command) (tasks : 'work list) :
+    (int, 'result option) Hashtbl.t =
+  let task_manager = ProcessPool.TaskManager.of_list tasks in
   let task_bar = TaskBar.create ~jobs:1 in
   (ProcessState.update_status :=
      fun t status ->
        TaskBar.update_status task_bar ~slot:0 t status ;
        TaskBar.refresh task_bar ) ;
-  TaskBar.set_tasks_total task_bar (task_generator.remaining_tasks ()) ;
+  TaskBar.set_tasks_total task_bar (task_manager.remaining_tasks ()) ;
   TaskBar.tasks_done_reset task_bar ;
   let rec run_tasks () =
-    if not (task_generator.is_empty ()) then (
-      Option.iter (task_generator.next ()) ~f:(fun t ->
-          let result = f t in
-          task_generator.finished ~result t ) ;
-      TaskBar.set_remaining_tasks task_bar (task_generator.remaining_tasks ()) ;
+    if not (task_manager.is_empty ()) then (
+      Option.iter (task_manager.next ()) ~f:(fun (idx, work) ->
+          let result = f work in
+          task_manager.finished idx ~result ) ;
+      TaskBar.set_remaining_tasks task_bar (task_manager.remaining_tasks ()) ;
       TaskBar.refresh task_bar ;
       run_tasks () )
   in
   run_tasks () ;
-  TaskBar.finish task_bar
+  TaskBar.finish task_bar ;
+  task_manager.results

@@ -2,21 +2,24 @@ open! IStd
 module F = Format
 module L = Logging
 
-module TaskGenerator = struct
+module TaskManager = struct
   type ('work, 'result) t =
     { remaining_tasks: unit -> int
     ; is_empty: unit -> bool
-    ; finished: result:'result option -> 'work -> unit
-    ; next: unit -> 'work option }
-
+    ; finished: int -> result:'result option -> unit
+    ; results: (int, 'result option) Hashtbl.t
+    ; next: unit -> (int * 'work) option }
 
   let of_list lst =
     let content = ref lst in
     let length = ref (List.length lst) in
+    let work_index = ref 0 in
+    let results = Hashtbl.create (module Int) in
     let remaining_tasks () = !length in
     let is_empty () = List.is_empty !content in
-    let finished ~result:_ _item =
-      decr length
+    let finished idx ~result =
+      decr length ;
+      Hashtbl.add results ~key:idx ~data:result |> ignore
       (* As you see here, it just tracks the *count* of the remaining
          tasks, not the *exact* task that some child has completed. *)
     in
@@ -26,9 +29,11 @@ module TaskGenerator = struct
           None
       | x :: xs ->
           content := xs ;
-          Some x
+          let idx = !work_index in
+          incr work_index ;
+          Some (idx, x)
     in
-    {remaining_tasks; is_empty; finished; next}
+    {remaining_tasks; is_empty; finished; results; next}
 end
 
 let log_or_die fmt = if !Config.keep_going then L.internal_error fmt else L.die InternalError fmt
@@ -59,7 +64,7 @@ type ('work, 'final, 'result) t =
   ; children_updates: Unix.File_descr.t list
         (** Each child has its own pipe to send updates to the pool *)
   ; task_bar: TaskBar.t
-  ; tasks: ('work, 'result) TaskGenerator.t  (** Generator for work remaining to be done *) }
+  ; tasks: ('work, 'result) TaskManager.t  (** Generator for work remaining to be done *) }
 
 (** Messages from child processes to the parent process. Each message includes the identity of the
     child sending the process as its index (slot) in the array [pool.slots].
@@ -72,14 +77,14 @@ type 'result worker_message =
   | UpdateStatus of int * Mtime.t * string
       (** [(i, t, status)] means starting a task from slot [i], at start time [t], with description
           [status]. Watch out that [status] must not be too close in length to [buffer_size]. *)
-  | Ready of {worker: int; result: 'result option}
+  | Ready of {worker: int; work_index: int; result: 'result option}
       (** Send after finishing initialization or after finishing a given task. When received by
           master, this moves the worker state from [Initializing] or [Processing _] to [Idle]. *)
   | Crash of int  (** There was an error and the child is no longer receiving messages. *)
 
 (** Messages from the parent process down to worker processes *)
 type 'work boss_message =
-  | Do of 'work
+  | Do of int * 'work
       (** [Do x] is sent only when the work is [Idle], and moves worker state to [Processing x] *)
   | GoHome  (** All tasks done, prepare for teardown. *)
 
@@ -197,10 +202,10 @@ let send_work_to_child (pool : ('work, 'final, 'result) t) (slot : int) : unit =
   (* Send work to child at [slot]. It must be Idle state to get its work. *)
   assert (is_idle pool.children_states.(slot)) ;
   pool.tasks.next ()
-  |> Option.iter ~f:(fun x ->
+  |> Option.iter ~f:(fun (idx, work) ->
          let {down_pipe; _} = pool.slots.(slot) in
-         pool.children_states.(slot) <- Processing x ;
-         marshal_to_pipe down_pipe (Do x) )
+         pool.children_states.(slot) <- Processing work ;
+         marshal_to_pipe down_pipe (Do (idx, work)) )
 
 
 (* This should not be called in any other arch than Linux *)
@@ -242,12 +247,12 @@ let process_updates (pool : ('work, 'final, 'result) t) (buffer : Bytes.t) : uni
            (* clean crash, give the child process a chance to cleanup *)
            Unix.wait (`Pid pid) |> ignore ;
            killall pool ~slot "see backtrace above"
-       | Ready {worker= slot; result} ->
+       | Ready {worker= slot; work_index; result} ->
            ( match pool.children_states.(slot) with
            | Initializing ->
                ()
-           | Processing work ->
-               pool.tasks.finished ~result work
+           | Processing _ ->
+               pool.tasks.finished work_index ~result
            | Idle ->
                L.(die InternalError) "Received a Ready message from idle worker@." ) ;
            TaskBar.set_remaining_tasks pool.task_bar (pool.tasks.remaining_tasks ()) ;
@@ -318,10 +323,10 @@ let rec child_loop :
     -> (unit -> 'work boss_message)
     -> f:('work -> 'result option)
     -> epilogue:(unit -> 'final)
-    -> prev_result:'result option
+    -> prev_result:int * 'result option
     -> unit =
  fun ~slot send_to_parent send_final receive_from_parent ~f ~epilogue ~prev_result ->
-  send_to_parent (Ready {worker= slot; result= prev_result}) ;
+  send_to_parent (Ready {worker= slot; work_index= fst prev_result; result= snd prev_result}) ;
   match receive_from_parent () with
   | GoHome -> (
     match epilogue () with
@@ -337,7 +342,7 @@ let rec child_loop :
               (* crash hard, but first let the master know that we have crashed *)
               send_final (FinalCrash slot) ;
               true ) ) )
-  | Do stuff ->
+  | Do (idx, stuff) ->
       let result : 'result option =
         try f stuff
         with exn ->
@@ -353,7 +358,7 @@ let rec child_loop :
           None
       in
       child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilogue
-        ~prev_result:result
+        ~prev_result:(idx, result)
 
 
 (** Fork a new child, and start it so that it is ready for work.
@@ -406,7 +411,8 @@ let fork_child :
       ProcessState.update_status := update_status ;
       let orders_ic = Unix.in_channel_of_descr to_child_r in
       let receive_from_parent () = Marshal.from_channel orders_ic in
-      child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilogue ~prev_result:None ;
+      child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilogue
+        ~prev_result:(-1, None) ;
       Out_channel.close updates_oc ;
       In_channel.close orders_ic ;
       Epilogues.run () ;
@@ -427,7 +433,7 @@ let create :
     -> child_prologue:(unit -> unit)
     -> f:('work -> 'result option)
     -> child_epilogue:(unit -> 'final)
-    -> tasks:(unit -> ('work, 'result) TaskGenerator.t)
+    -> tasks:(unit -> ('work, 'result) TaskManager.t)
     -> ('work, 'final, 'result) t =
  fun ~jobs ~child_prologue ~f ~child_epilogue ~tasks ->
   let task_bar = TaskBar.create ~jobs in
@@ -449,7 +455,8 @@ let create :
   {slots; children_updates; jobs; task_bar; tasks= tasks (); children_states}
 
 
-let run (pool : ('work, 'final, 'result) t) : 'final option Array.t =
+let run (pool : ('work, 'final, 'result) t) :
+    'final option Array.t * (int, 'result option) Hashtbl.t =
   let total_tasks = pool.tasks.remaining_tasks () in
   TaskBar.set_tasks_total pool.task_bar total_tasks ;
   TaskBar.tasks_done_reset pool.task_bar ;
@@ -462,4 +469,4 @@ let run (pool : ('work, 'final, 'result) t) : 'final option Array.t =
   done ;
   let results = wait_all pool in
   TaskBar.finish pool.task_bar ;
-  results
+  (results, pool.tasks.results)

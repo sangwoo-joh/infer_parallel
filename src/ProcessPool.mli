@@ -8,8 +8,8 @@
 
 open! IStd
 
-module TaskGenerator : sig
-  (** abstraction for generating jobs *)
+module TaskManager : sig
+  (** abstraction for managing tasks *)
 
   type ('work, 'result) t =
     { remaining_tasks: unit -> int
@@ -17,12 +17,14 @@ module TaskGenerator : sig
               not a bug*)
     ; is_empty: unit -> bool
           (** when should the main loop of the task manager stop expecting new tasks *)
-    ; finished: result:'result option -> 'work -> unit
+    ; finished: int -> result:'result option -> unit
           (** Process pool calls [finished result:r x] when a worker finished item [x]. result is
               [None] when the item was completed successfully and [Some pname] when it failed
               because it could not lock [pname]. This is only called if [next ()] has previously
               returned [Some x] and [x] was sent to a worker. *)
-    ; next: unit -> 'work option
+    ; results: (int, 'result option) Hashtbl.t
+          (** Collected result of [Task.command] in an unordered manner. *)
+    ; next: unit -> (int * 'work) option
           (** [next ()] generates the next work item. If [is_empty ()] is [true] then [next ()] must
               return [None]. However, it is OK to for [next ()] to return [None] when [is_empty ()]
               is [false]. This corresponds to the case where there is more works to be done, but it
@@ -56,10 +58,10 @@ val create :
   -> child_prologue:(unit -> unit)
   -> f:('work -> 'result option)
   -> child_epilogue:(unit -> 'final)
-  -> tasks:(unit -> ('work, 'result) TaskGenerator.t)
+  -> tasks:(unit -> ('work, 'result) TaskManager.t)
   -> ('work, 'final, 'result) t
 (** Create a new pool of processes running [jobs] jobs in parallel *)
 
-val run : ('work, 'final, 'result) t -> 'final option Array.t
+val run : ('work, 'final, 'result) t -> 'final option Array.t * (int, 'result option) Hashtbl.t
 (** Use the processes in the given process pool to run all the given tasks in parallel and return
     the results of the epilogues *)

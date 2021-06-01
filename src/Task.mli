@@ -10,9 +10,9 @@ open! IStd
 
 (** Entry point for leveraging [TaskBar] and [ProcessPool]. *)
 
-type ('a, 'b) command = 'a -> 'b option
+type ('work, 'result) command = 'work -> 'result option
 
-val run_sequentially : f:('a, 'b) command -> 'a list -> unit
+val run_sequentially : f:('work, 'result) command -> 'work list -> (int, 'result option) Hashtbl.t
 (** Run the tasks sequentially *)
 
 (** A runner accepts new tasks repeatedly for parallel execution *)
@@ -24,10 +24,10 @@ module Runner : sig
     -> child_prologue:(unit -> unit)
     -> f:('work, 'result) command
     -> child_epilogue:(unit -> 'final)
-    -> tasks:(unit -> ('work, 'result) ProcessPool.TaskGenerator.t)
+    -> tasks:(unit -> ('work, 'result) ProcessPool.TaskManager.t)
     -> ('work, 'final, 'result) t
   (** Create a runner running [jobs] jobs in parallel *)
 
-  val run : (_, 'final, _) t -> 'final option Array.t
+  val run : ('work, 'final, 'result) t -> 'final option Array.t * (int, 'result option) Hashtbl.t
   (** Start the given tasks with the runner and wait until completion *)
 end
