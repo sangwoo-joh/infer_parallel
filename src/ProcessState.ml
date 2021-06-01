@@ -1,6 +1,6 @@
 open! IStd
 
-let in_child = ref false
+let worker = ref false
 
 let update_status = ref (fun _ _ -> ())
 

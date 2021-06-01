@@ -29,7 +29,11 @@ module TaskGenerator = struct
     let length = ref (List.length lst) in
     let remaining_tasks () = !length in
     let is_empty () = List.is_empty !content in
-    let finished ~result:_ _work_item = decr length in
+    let finished ~result:_ _work_item =
+      decr length
+      (* As you see here, it just tracks the *count* of the remaining
+         tasks, not the *exact* task that some child has completed. *)
+    in
     let next () =
       match !content with
       | [] ->
@@ -355,7 +359,7 @@ let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
       (* Pin to a core. [setcore] does the module <number of cores>
          for us. *)
       Utils.set_best_cpu_for slot ;
-      ProcessState.in_child := true ;
+      ProcessState.worker := true ;
       ProcessState.reset_pid () ;
       child_prologue () ;
       let updates_oc = Unix.out_channel_of_descr updates_w in
