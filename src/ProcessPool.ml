@@ -112,14 +112,16 @@ let refresh_timeout : [> `After of Time_ns.Span.t] =
 let buffer_size : int = 65_535
 
 (** Convinient function to send data down pipes without forgetting to flush *)
-let marshal_to_pipe fd x =
+let marshal_to_pipe : Out_channel.t -> 'a -> unit =
+ fun fd x ->
   Marshal.to_channel fd x [] ;
   (* Channel flush should be inside the critical section *)
   Out_channel.flush fd
 
 
 (** Like [Unix.read] but reads until [len] bytes have been read *)
-let rec really_read ?(pos = 0) ~len fd ~buf =
+let rec really_read : ?pos:int -> len:int -> Unix.File_descr.t -> buf:Bytes.t -> unit =
+ fun ?(pos = 0) ~len fd ~buf ->
   if len > 0 then (
     let read = Unix.read ~pos ~len fd ~buf in
     if Int.equal read 0 then raise End_of_file ;
@@ -129,7 +131,8 @@ let rec really_read ?(pos = 0) ~len fd ~buf =
 (** Return a list of all updates coming from workers. The first update is expected for up to the
     timeout [refresh_timeout]. After that, all already received updates are consumed but with zero
     timeout. If there is none left, return the list. *)
-let wait_for_updates pool buffer =
+let wait_for_updates (pool : ('work, 'final, 'result) t) (buffer : Bytes.t) :
+    'result worker_message list =
   let rec loop acc ~timeout =
     (* Use select(2) so that we can both wait on the pipe of children
        updates and wait for a timeout. The timeout is for giving a
@@ -163,14 +166,15 @@ let wait_for_updates pool buffer =
               really_read file_descr ~buf:buffer ~len:Marshal.header_size ;
               let data_size = Marshal.data_size buffer 0 in
               really_read file_descr ~buf:buffer ~pos:Marshal.header_size ~len:data_size ;
-              Marshal.from_bytes buffer 0 :: msgs_acc )
+              (Marshal.from_bytes buffer 0 : 'result worker_message) :: msgs_acc )
         in
         loop messages ~timeout:`Immediately
   in
   loop [] ~timeout:refresh_timeout |> List.rev
 
 
-let killall pool ~slot status =
+let killall (pool : ('work, 'final, 'result) t) ~(slot : int) (status : string) : 'a =
+  (* The return type is 'a, because this function termiates the process. *)
   (* First, send SIGTERM for all children *)
   Array.iter pool.slots ~f:(fun {pid; _} ->
       match Signal.send Signal.term (`Pid pid) with `Ok | `No_such_process -> () ) ;
@@ -184,7 +188,7 @@ let killall pool ~slot status =
   L.(die InternalError) "Subprocess %d: %s" slot status
 
 
-let has_dead_child pool =
+let has_dead_child (pool : ('work, 'final, 'result) t) : (int * Unix.Exit_or_signal.t) option =
   let open Option.Monad_infix in
   Unix.wait_nohang `Any
   >>= fun (dead_pid, status) ->
@@ -197,11 +201,13 @@ let has_dead_child pool =
   >>| fun slot -> (slot, status)
 
 
-let is_idle = function Idle -> true | _ -> false
+let is_idle : _ child_state -> bool = function Idle -> true | _ -> false
 
-let all_children_idle pool = Array.for_all pool.children_states ~f:is_idle
+let all_children_idle (pool : ('work, 'final, 'result) t) : bool =
+  Array.for_all pool.children_states ~f:is_idle
 
-let send_work_to_child pool slot =
+
+let send_work_to_child (pool : ('work, 'final, 'result) t) (slot : int) : unit =
   (* Send work to child at [slot]. It must be Idle state to get its work. *)
   assert (is_idle pool.children_states.(slot)) ;
   pool.tasks.next ()
@@ -212,7 +218,7 @@ let send_work_to_child pool slot =
 
 
 (* This should not be called in any other arch than Linux *)
-let should_throttle =
+let should_throttle : int -> bool =
   let currently_throttled = ref false in
   fun threshold ->
     ( match Utils.get_available_memory_MB () with
@@ -226,14 +232,14 @@ let should_throttle =
     !currently_throttled
 
 
-let send_work_to_child pool slot =
+let send_work_to_child (pool : ('work, 'final, 'result) t) (slot : int) : unit =
   let throttled = Option.exists !Config.oom_threshold ~f:should_throttle in
   if not throttled then send_work_to_child pool slot
 
 
 (** Main dispatch function that responds to messages from worker processes and updates the taskbar
     periodically *)
-let process_updates pool buffer =
+let process_updates (pool : ('work, 'final, 'result) t) (buffer : Bytes.t) : unit =
   (* abort everything if some child has died unexpectedly *)
   has_dead_child pool
   |> Option.iter ~f:(fun (slot, status) ->
@@ -267,7 +273,7 @@ let process_updates pool buffer =
         match state with Idle -> send_work_to_child pool slot | Initializing | Processing _ -> () )
 
 
-let collect_results (pool : (_, 'final, _) t) =
+let collect_results (pool : ('work, 'final, 'result) t) : 'final option Array.t =
   let failed = ref false in
   (* use [Array.init] just to collect n messages, the order in the
      array will not be the same as the slots of the workers but that's
@@ -291,7 +297,7 @@ let collect_results (pool : (_, 'final, _) t) =
 
 
 (** Terminate all worker processes *)
-let wait_all pool =
+let wait_all (pool : ('work, 'final, 'result) t) : 'final option Array.t =
   (* Tell each alive worker to go home *)
   Array.iter pool.slots ~f:(fun {down_pipe; _} ->
       marshal_to_pipe down_pipe GoHome ;
@@ -319,7 +325,16 @@ let wait_all pool =
 
 
 (** Worker loop: wait for tasks and run [f] on them until they are told to go home *)
-let rec child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilogue ~prev_result =
+let rec child_loop :
+       slot:int
+    -> ('result worker_message -> unit)
+    -> ('final final_worker_message -> unit)
+    -> (unit -> 'work boss_message)
+    -> f:('work -> 'result option)
+    -> epilogue:(unit -> 'final)
+    -> prev_result:'result option
+    -> unit =
+ fun ~slot send_to_parent send_final receive_from_parent ~f ~epilogue ~prev_result ->
   send_to_parent (Ready {worker= slot; result= prev_result}) ;
   match receive_from_parent () with
   | GoHome -> (
@@ -337,7 +352,7 @@ let rec child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilo
               send_final (FinalCrash slot) ;
               true ) ) )
   | Do stuff ->
-      let result =
+      let result : 'result option =
         try f stuff
         with exn ->
           IExn.reraise_if exn ~f:(fun () ->
@@ -359,7 +374,14 @@ let rec child_loop ~slot send_to_parent send_final receive_from_parent ~f ~epilo
 
     The child inherits [updates_w] to send updates up to the parent, and a new pipe is set up for
     theparent to send instructions down to the child. *)
-let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
+let fork_child :
+       child_prologue:(unit -> unit)
+    -> slot:int
+    -> Unix.File_descr.t * Unix.File_descr.t
+    -> f:('work -> 'result option)
+    -> epilogue:(unit -> 'final)
+    -> child_info =
+ fun ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue ->
   let to_child_r, to_child_w = Unix.pipe () in
   match Unix.fork () with
   | `In_the_child ->
@@ -409,7 +431,10 @@ let fork_child ~child_prologue ~slot (updates_r, updates_w) ~f ~epilogue =
       {pid; down_pipe= Unix.out_channel_of_descr to_child_w}
 
 
-let rec create_pipes n = if Int.equal n 0 then [] else Unix.pipe () :: create_pipes (n - 1)
+(** Returns a list of pairs of pipe (read, write) *)
+let rec create_pipes : int -> (Unix.File_descr.t * Unix.File_descr.t) list =
+ fun n -> if Int.equal n 0 then [] else Unix.pipe () :: create_pipes (n - 1)
+
 
 let create :
        jobs:int
@@ -438,7 +463,7 @@ let create :
   {slots; children_updates; jobs; task_bar; tasks= tasks (); children_states}
 
 
-let run pool =
+let run (pool : ('work, 'final, 'result) t) : 'final option Array.t =
   let total_tasks = pool.tasks.remaining_tasks () in
   TaskBar.set_tasks_total pool.task_bar total_tasks ;
   TaskBar.tasks_done_reset pool.task_bar ;
