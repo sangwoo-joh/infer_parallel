@@ -37,8 +37,8 @@ end
 
 (** Pool of parallel workers that can both receive tasks from the master process and start doing
     tasks on their own. Unix pipes are used for comminucation, all while refreshing a task bar
-    periodically.ANSITerminal Due to on-demand analysis, workers may do tasks unprompted (e.g., when
-    analysing a procedure, a process will typically end up analysing all its callees). Thus,
+    periodically. ANSITerminal Due to on-demand analysis, workers may do tasks unprompted (e.g.,
+    when analysing a procedure, a process will typically end up analysing all its callees). Thus,
     children need to update the main process (which is in charge of the task bar) whenever they
     start analysing a new procedure, and whenever they resume analysing a previous procedure. This
     is more complicated than what, e.g., `ParMap` can handle because of the bi-directional flow
@@ -48,7 +48,7 @@ end
     respectively send them more tasks ("Do x") or update the task bar with the description provided
     by the child.
 
-    See also ProcessState. *)
+    See also [ProcessState]. *)
 
 (** A [('work, 'final) t] process pool accepts tasks of type ['work] and produces an array of
     results of type ['final]. ['work] and ['final] will be marshalled over a Unix pipe.*)
