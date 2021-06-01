@@ -6,6 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  *)
 
+(** This module is used for each child to manage and update its state. *)
+
 open! IStd
 
 val in_child : bool ref
@@ -20,3 +22,4 @@ val get_pid : unit -> Pid.t
 val reset_pid : unit -> unit
 
 val has_running_children : bool ref
+(** This is only [ture] for the parent process. *)
