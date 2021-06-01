@@ -123,7 +123,7 @@ let rec really_read ?(pos = 0) ~len fd ~buf =
     timeout [refresh_timeout]. After that, all already received updates are consumed but with zero
     timeout. If there is none left, return the list. *)
 let wait_for_updates pool buffer =
-  let rec aux acc ~timeout =
+  let rec loop acc ~timeout =
     (* Use select(2) so that we can both wait on the pipe of children
        updates and wait for a timeout. The timeout is for giving a
        chance to the taskbar of refreshing from time to time, as well
@@ -158,9 +158,9 @@ let wait_for_updates pool buffer =
               really_read file_descr ~buf:buffer ~pos:Marshal.header_size ~len:data_size ;
               Marshal.from_bytes buffer 0 :: msgs_acc )
         in
-        aux messages ~timeout:`Immediately
+        loop messages ~timeout:`Immediately
   in
-  aux [] ~timeout:refresh_timeout |> List.rev
+  loop [] ~timeout:refresh_timeout |> List.rev
 
 
 let killall pool ~slot status =
