@@ -10,6 +10,9 @@ open! IStd
 
 type t
 
+(** The parent process is responsible for managing TaskBar. Whenever children processes updates
+    their states, the parent updates the state information and refreshes TaskBar. *)
+
 val erase_eol : string
 
 val refresh : t -> unit
