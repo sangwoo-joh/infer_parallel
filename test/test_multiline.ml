@@ -65,19 +65,20 @@ let meaninglessly_parallel () =
         | Some gc_stat_opt ->
             Core.Option.fold ~init:acc ~f:(fun l x -> x :: l) gc_stat_opt )
   in
-  L.(debug Verbose) "Total size of collected final: %d\n" (List.length collected_stats) ;
-  L.(debug Verbose) "Total size of result: %d\n" (Core.Hashtbl.length result_table) ;
+  (* Show results *)
+  L.user_warning "Total size of collected final: %d\n" (List.length collected_stats) ;
+  L.user_warning "Total size of result: %d\n" (Core.Hashtbl.length result_table) ;
   Core.Hashtbl.iteri result_table ~f:(fun ~key ~data ->
       match data with
       | None ->
-          L.(debug Verbose) "%dth task is dead\n" key
+          L.user_warning "%dth task is dead\n" key
       | Some number ->
-          L.(debug Verbose) "%dth task %d survived!\n" key number ) ;
+          L.user_warning "%dth task %d survived!\n" key number ) ;
   let survived =
     Core.Hashtbl.fold result_table ~init:0 ~f:(fun ~key:_ ~data acc ->
         match data with None -> acc | Some _ -> acc + 1 )
   in
-  L.(debug Verbose) "Total %d task was survived\n" survived
+  L.user_warning "Total %d task was survived\n" survived
 
 
 let () = meaninglessly_parallel () |> ignore
