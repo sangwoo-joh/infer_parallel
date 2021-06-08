@@ -9,6 +9,14 @@
  This project was inspired by Rijnard van Tonder's
  [hack_parallel](https://github.com/rvantonder/hack_parallel).
 
+## LIMITATIONS
+<!-- only support map, iter -->
+<!-- only in a single multi-core machine -->
+<!-- infer v1.1.0 -->
+<!-- no guarantee for maintenance -->
+<!-- Since it uses marshalling for communication, messages MUST not be bigger than [buffer_size] after marshaled which is under 64kb.  -->
+
+
 ## Samples
  You can find a sample code in [sample/](sample/).
 
