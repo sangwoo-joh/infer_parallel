@@ -41,7 +41,7 @@ let rec pp_n c fmt n =
     pp_n c fmt (n - 1) )
 
 
-let move_bol = "\r"
+let move_bol = "\r" (* BOL: Beginning of Line *)
 
 let move_cursor_down n = P.sprintf "\027[%iB" n
 
