@@ -1,0 +1,3 @@
+(executables
+ (names sample_multiline sample_quiet sample_keep_going sample_abort)
+ (libraries infer_parallel))

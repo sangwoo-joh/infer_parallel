@@ -1,3 +1,0 @@
-(executables
- (names test_multiline test_quiet test_keep_going test_abort)
- (libraries infer_parallel))
