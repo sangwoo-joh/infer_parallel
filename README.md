@@ -9,8 +9,17 @@
  This project was inspired by Rijnard van Tonder's
  [hack_parallel](https://github.com/rvantonder/hack_parallel).
 
-## Sample
- You can find a sample code in [test/test.ml](test/test.ml). Below is
- an animation of how it works.
+## Samples
+ You can find a sample code in [sample/](sample/).
 
-![](resources/infer_parallel.gif)
+### Multiline
+![](resources/infer_parallel_sample_multiline.gif)
+
+### Multiline + Keep Going
+![](resources/infer_parallel_sample_keep_going.gif)
+
+### Multiline + Abort (NOT Keep Going)
+![](resources/infer_parallel_sample_abort.gif)
+
+### Quiet
+![](resources/infer_parallel_sample_quiet.gif)
