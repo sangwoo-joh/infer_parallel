@@ -402,7 +402,7 @@ let fork_child :
               (* Truncate status if too big: it's pointless to spam
                  the status bar with long status, and also difficult
                  to achieve technically over pipes (it's easier if all
-                 the messages fit into a buffer ot reasonable
+                 the messages fit into a buffer or reasonable
                  size). *)
               if String.length status > 100 then String.subo ~len:100 status ^ "..." else status
             in
